@@ -70,6 +70,17 @@ dataToExcel = {
     '% скидки': [],
 }
 
+nets =[]
+types=[]
+products=[]
+size=[]
+conatiner=[]
+start=[]
+end=[]
+oldPrice=[]
+discPrice=[]
+arpercent=[]
+
 def parce_start():
     # city = translit(input("Введите город в котором хотите парсить скидки: "))
     city = translit('Барнаул')
@@ -97,6 +108,19 @@ def parce_start():
         last_page=3
         driver.quit()
         while page_num <= last_page:
+
+            nets = []
+            types = []
+            products = []
+            size = []
+            conatiner = []
+            start = []
+            end = []
+            oldPrice = []
+            discPrice = []
+            arpercent = []
+
+
             url_start = url + "?page=" + str(page_num)+"&"+bigParams
 
             driver = webdriver.Chrome(ChromeDriverManager().install())
@@ -112,7 +136,7 @@ def parce_start():
                 dataToExcel['Сеть'].append(net)
                 gname = gcard.find_element_by_class_name("b-offer__description").text
 
-                # print( dataToExcel['Продукция'])
+                print( dataToExcel['Продукция'])
                 # print(gname)
                 items+=1
 
@@ -148,14 +172,29 @@ def parce_start():
                     pack = 0
                     packData = ['Не указано']
 
-                dataToExcel['Вид продукта'].append(getSection(segment))
-                dataToExcel['Продукция'].append(gname)
-                dataToExcel['Размер тары'].append(packData[0])
-                dataToExcel['Окончание акции'].append(date)
-                dataToExcel['Цена до акции'].append(gprice_old)
-                dataToExcel['Цена во время акции'].append(gprice_dis)
-                dataToExcel['% скидки'].append(percent)
-                dataToExcel['Начало акции'].append(get_start_action(gcard.get_attribute('href'),driver))
+                nets.append(net)
+                types.append(getSection(segment))
+                products.append(gname)
+                size.append(packData[0])
+                oldPrice.append(gprice_old)
+                discPrice.append(gprice_dis)
+                arpercent.append(percent)
+
+                # dataToExcel['Вид продукта'].append(getSection(segment))
+                # dataToExcel['Продукция'].append(gname)
+                # dataToExcel['Размер тары'].append(packData[0])
+                # dataToExcel['Окончание акции'].append(date)
+                # dataToExcel['Цена до акции'].append(gprice_old)
+                # dataToExcel['Цена во время акции'].append(gprice_dis)
+                # dataToExcel['% скидки'].append(percent)
+                # dataToExcel['Начало акции'].append(get_start_action(gcard.get_attribute('href'),driver))
+
+                dataToExcel['Вид продукта']=dataToExcel['Вид продукта']+types
+                dataToExcel['Продукция']=dataToExcel['Продукция']+products
+                dataToExcel['Размер тары']=dataToExcel['Размер тары']+size
+                dataToExcel['Цена до акции']=dataToExcel['Цена до акции']+oldPrice
+                dataToExcel['Цена во время акции']=dataToExcel['Цена во время акции']+discPrice
+                dataToExcel['% скидки']=dataToExcel['% скидки']+arpercent
             print(page_num)
             print(items)
             page_num += 1
