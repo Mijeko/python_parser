@@ -2,6 +2,7 @@
 import re
 import sqlite3
 import sys
+import io
 import time
 import traceback
 from selenium.webdriver.chrome.options import Options
@@ -71,6 +72,8 @@ dataToExcel = {
 }
 
 def parce_start():
+    option = webdriver.ChromeOptions()
+    option.add_argument('headless')
     # city = translit(input("Введите город в котором хотите парсить скидки: "))
     city = translit('Барнаул')
     if city == '':
@@ -84,6 +87,8 @@ def parce_start():
         url = "https://edadeal.ru/"+city+"/offers"
         bigParams="retailer=5ka&retailer=aniks&retailer=auchan&retailer=bristol&retailer=lenta-giper&retailer=magnit-univer&retailer=maria-ra&retailer=myfasol&segment="+segment
         url_start_page = url+"?"+bigParams
+
+
         driver = webdriver.Chrome(ChromeDriverManager().install())
         driver.maximize_window()
         driver.get(url_start_page)
@@ -95,28 +100,22 @@ def parce_start():
 
         page_num = 1
         last_page=3
-        driver.quit()
         while page_num <= last_page:
             url_start = url + "?page=" + str(page_num)+"&"+bigParams
 
-            driver = webdriver.Chrome(ChromeDriverManager().install())
-            driver.maximize_window()
+            # driver = webdriver.Chrome(ChromeDriverManager().install())
+            # driver.maximize_window()
             driver.get(url_start)
             time.sleep(5)
-            # driver.implicitly_wait(5)
+            driver.implicitly_wait(5)
             items=0
             print(url_start)
             goods_card = driver.find_elements_by_class_name("p-offers__offer")
             for gcard in goods_card:
                 net = gcard.find_element_by_class_name("b-image.b-image_disabled_false.b-image_cap_f.b-image_img_vert.b-image_loaded_true.b-offer__retailer-icon").get_attribute('title')
-                dataToExcel['Сеть'].append(net)
                 gname = gcard.find_element_by_class_name("b-offer__description").text
 
-                # print( dataToExcel['Продукция'])
-                # print(gname)
                 items+=1
-
-
                 try:
                     gprice_dis = gcard.find_element_by_class_name("b-offer__price-new").text
                     gprice_dis = re.search("\d+(,.)\d+", gprice_dis).group(0)
@@ -148,6 +147,8 @@ def parce_start():
                     pack = 0
                     packData = ['Не указано']
 
+
+                dataToExcel['Сеть'].append(net)
                 dataToExcel['Вид продукта'].append(getSection(segment))
                 dataToExcel['Продукция'].append(gname)
                 dataToExcel['Размер тары'].append(packData[0])
@@ -155,16 +156,20 @@ def parce_start():
                 dataToExcel['Цена до акции'].append(gprice_old)
                 dataToExcel['Цена во время акции'].append(gprice_dis)
                 dataToExcel['% скидки'].append(percent)
-                dataToExcel['Начало акции'].append(get_start_action(gcard.get_attribute('href'),driver))
+                # dataToExcel['Начало акции'].append(get_start_action(gcard.get_attribute('href'),driver))
+
+                with io.open('demo.txt', "a", encoding="utf-8") as f:
+                    f.write(getSection(segment)+gname+'\n')
+
             print(page_num)
             print(items)
             page_num += 1
-            driver.quit()
+        driver.quit()
 
 
-    df = pd.DataFrame.from_dict(dataToExcel, orient='index')
-    df = df.transpose()
-    df.to_excel('./price.xlsx',sheet_name='price', index=False)
+    # df = pd.DataFrame.from_dict(dataToExcel, orient='index')
+    # df = df.transpose()
+    # df.to_excel('./price.xlsx',sheet_name='price', index=False)
 
 
 parce_start()
