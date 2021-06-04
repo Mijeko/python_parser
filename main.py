@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+#compile to exe run command in console: pyinstaller --onefile main.py
 import re
 import sqlite3
 import sys
@@ -36,6 +37,47 @@ def get_start_action(url,driver):
 
     return dates[0]
 
+def get_concret_section(driver):
+    concret = ''
+    try:
+        name= driver.find_element_by_class_name('p-offer__description').text
+    except:
+        name='Не удалось получить'
+
+    if isBeer(name):
+        concret = 'Б/А пиво'
+    elif isEnergyDrink(name):
+        concret = 'Энергетик'
+
+    return concret
+
+def isBeer(str):
+    return check_by_tags(str,['пивной','Пиво безалкогол'])
+
+def isEnergyDrink(str):
+    # return check_by_tags(str,['энергетик','Энергетический'])
+    return check_by_tags(str,['энергет','кофеин','таурин'])
+    # return check_by_tags(str,['Напиток','безалкогольный', 'энергетик'])
+
+def check_by_tags(str,tags):
+    isBool = False
+
+    for e in tags:
+        if str.lower().find(e.lower()):
+            isBool = True
+    return isBool
+
+def get_sub_cat(driver):
+    subcat=""
+
+    for e in driver.find_elements_by_class_name('p-offer__segment-path'):
+        print(e.text)
+        subcat = e.text
+
+    driver.quit()
+
+    return subcat
+
 def getSection(en_sect):
     # {'beer-cider', 'beverages', 'kvass', 'cold-tea', 'water', 'sparkling-water'}
     if(en_sect=='beer-cider'): return 'Пиво-Сидр';
@@ -63,10 +105,12 @@ def translit(city):
 dataToExcel = {
     'Сеть': [],
     'Вид продукта': [],
+    # 'Подкатегория': [],
+    # 'Доп_категория': [],
     'Продукция': [],
     'Размер тары': [],
     'Тара': [],
-    'Начало акции': [],
+    # 'Начало акции': [],
     'Окончание акции': [],
     'Цена до акции': [],
     'Цена во время акции': [],
@@ -88,7 +132,7 @@ def parce_start():
 
         allItems=int(-1)
         savedItems=int(0)
-        while (allItems <= savedItems):
+        while (allItems != savedItems):
             print("Добавлено товаров: ")
             print(savedItems)
             # print(len(dataToExcel['Ссылка']))
@@ -97,7 +141,11 @@ def parce_start():
 
             # segment = "beer-cider"
             url = "https://edadeal.ru/" + city + "/offers"
-            bigParams = "retailer=5ka&retailer=aniks&retailer=auchan&retailer=bristol&retailer=lenta-giper&retailer=magnit-univer&retailer=maria-ra&retailer=myfasol&segment=" + segment
+            bigParams = "retailer=5ka&retailer=auchan&retailer=bristol&retailer=lenta-giper&retailer=magnit-univer&retailer=maria-ra&segment=" + segment
+            # bigParams = "retailer=auchan&retailer=lenta-giper&segment=" + segment
+            # bigParams = "retailer=5ka&retailer=aniks&retailer=auchan&retailer=bristol&retailer=lenta-giper&retailer=magnit-univer&retailer=maria-ra&retailer=myfasol&segment=" + segment
+            # bigParams = "retailer=aniks&retailer=lenta-giper&retailer=myfasol&segment=" + segment
+            # bigParams = "retailer=aniks&segment=" + segment
             url_start_page = url + "?" + bigParams
 
 
@@ -126,10 +174,15 @@ def parce_start():
                 driver2 = webdriver.Chrome(ChromeDriverManager().install())
                 driver2.maximize_window()
                 driver2.get(url_start)
-                driver2.implicitly_wait(1)
-                WebDriverWait(driver2, 5).until(
-                    EC.presence_of_element_located((By.CLASS_NAME, "b-offer__offer-info"))
-                )
+                driver2.implicitly_wait(2)
+                try:
+                    WebDriverWait(driver2, 10).until(
+                        EC.presence_of_element_located((By.CLASS_NAME, "b-offer__offer-info"))
+                    )
+                except:
+                    df = pd.DataFrame.from_dict(dataToExcel, orient='index')
+                    df = df.transpose()
+                    df.to_excel('./price.xlsx', sheet_name='price', index=False)
                 # time.sleep(5)
                 goods_card = driver2.find_elements_by_class_name("p-offers__offer")
                 for gcard in goods_card:
@@ -182,6 +235,11 @@ def parce_start():
                         pack = 0
                         packData = ['Не указано']
 
+                    # driver_detail = webdriver.Chrome(ChromeDriverManager().install())
+                    # driver_detail.maximize_window()
+                    # driver_detail.get(gcard.get_attribute('href'))
+                    # driver_detail.implicitly_wait(3)
+                    # time.sleep(3)
 
                     dataToExcel['Сеть'].append(net)
                     dataToExcel['Вид продукта'].append(getSection(segment))
@@ -192,12 +250,15 @@ def parce_start():
                     dataToExcel['Цена во время акции'].append(gprice_dis)
                     dataToExcel['% скидки'].append(percent)
                     # dataToExcel['Начало акции'].append(get_start_action(gcard.get_attribute('href'),driver))
+                    # dataToExcel['Подкатегория'].append(get_sub_cat(driver_detail))
+                    # dataToExcel['Доп_категория'].append(get_concret_section(driver_detail))
                     dataToExcel['Ссылка'].append(clearHref[0])
 
                     # clearHref = re.findall(r'^[^?]*',gcard.get_attribute('href'))
                     # dataToExcel['Ссылка'].append(clearHref[0])
                     # dataToExcel['Ссылка'].append(gcard.get_attribute('href'))
 
+                    # driver_detail.quit()
                     with io.open('demo.txt', "a", encoding="utf-8") as f:
                         f.write(getSection(segment)+gname+'\n')
 
