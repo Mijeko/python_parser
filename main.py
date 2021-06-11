@@ -105,8 +105,8 @@ def translit(city):
 dataToExcel = {
     'Сеть': [],
     'Вид продукта': [],
-    # 'Подкатегория': [],
-    # 'Доп_категория': [],
+    'Подкатегория': [],
+    'Доп_категория': [],
     'Продукция': [],
     'Размер тары': [],
     'Тара': [],
@@ -118,6 +118,50 @@ dataToExcel = {
     'Ссылка': [],
 }
 
+def get_last_page(driver, url, bigParams):
+
+    lp = get_actual_last_page(driver)
+    lp_tmp=1
+
+    print('lp:')
+    print(lp)
+
+    while(lp != lp_tmp):
+        lp_tmp =check_last_page(url, bigParams, lp)
+        lp=lp_tmp
+
+    return lp_tmp
+
+def get_actual_last_page(driver):
+    last_page = 1
+
+    for e in driver.find_elements_by_class_name( 'b-pagination__n'):
+    # for e in driver.find_elements_by_class_name('b-button.b-button_disabled_false.b-button_theme_blank.b-button_shape_square.b-button_size_m.b-button_justify_center.b-pagination__n'):
+        last_page = int(e.text)
+
+    return last_page
+
+def check_last_page(url, bigParams, lp):
+
+    print('accept lp:')
+    print(lp)
+    print('why lp url:')
+    print(url + "?page=" + str(lp)+"&"+bigParams)
+
+    driver = webdriver.Chrome(ChromeDriverManager().install())
+    driver.maximize_window()
+    driver.get(url + "?page=" + str(lp)+"&"+bigParams)
+    driver.implicitly_wait(3)
+    time.sleep(3)
+    lp = get_actual_last_page(driver)
+    driver.quit()
+
+
+    print('change lp to:')
+    print(lp)
+
+    return lp
+now_lp=0
 def parce_start():
     option = webdriver.ChromeOptions()
     option.add_argument('headless')
@@ -126,9 +170,8 @@ def parce_start():
     if city == '':
         city = translit("Барнаул")
         print("Город не выбран. По умолчанию парсим Барнаул")
-    # for segment in {'beer-cider','beverages','kvass','cold-tea','water','sparkling-water'}:
+    # for segment in {'beverages'}:
     for segment in {'beer-cider', 'beverages'}:
-    # for segment in {'beer-cider'}:
 
         allItems=int(-1)
         savedItems=int(0)
@@ -153,11 +196,9 @@ def parce_start():
             driver.maximize_window()
             driver.get(url_start_page)
             time.sleep(5)
-            last_page=1
-
-            for e in driver.find_elements_by_class_name('b-button.b-button_disabled_false.b-button_theme_blank.b-button_shape_square.b-button_size_m.b-button_justify_center.b-button_selected_false.b-pagination__n'):
-                last_page = int(e.text)
-
+            print('начали: ')
+            print(url_start_page)
+            last_page=get_last_page(driver,url,bigParams)
 
             h1ElText =driver.find_element_by_class_name('p-offers__header').text
             try:
@@ -165,8 +206,13 @@ def parce_start():
             except:
                 print(h1ElText)
 
+
+            print("new = Всего товаров: ")
+            print(allItems)
+
             page_num = 1
-            # last_page=3
+            print('find for page: ')
+            print(last_page)
             driver.quit()
             while page_num <= last_page:
                 url_start = url + "?page=" + str(page_num)+"&"+bigParams
@@ -200,7 +246,10 @@ def parce_start():
                         continue
 
                     savedItems += 1
-                    net = gcard.find_element_by_class_name("b-image.b-image_disabled_false.b-image_cap_f.b-image_img_vert.b-image_loaded_true.b-offer__retailer-icon").get_attribute('title')
+                    try:
+                        net = gcard.find_element_by_class_name("b-image.b-image_disabled_false.b-image_cap_f.b-image_img_vert.b-image_loaded_true.b-offer__retailer-icon").get_attribute('title')
+                    except:
+                        net='Не удалось получить'
                     # gname = gcard.find_element_by_class_name("b-offer__description").get_attribute('title')
                     gname = gcard.find_element_by_class_name("b-offer__description").text
 
@@ -235,9 +284,9 @@ def parce_start():
                         pack = 0
                         packData = ['Не указано']
 
-                    # driver_detail = webdriver.Chrome(ChromeDriverManager().install())
-                    # driver_detail.maximize_window()
-                    # driver_detail.get(gcard.get_attribute('href'))
+                    driver_detail = webdriver.Chrome(ChromeDriverManager().install())
+                    driver_detail.maximize_window()
+                    driver_detail.get(gcard.get_attribute('href'))
                     # driver_detail.implicitly_wait(3)
                     # time.sleep(3)
 
@@ -250,15 +299,15 @@ def parce_start():
                     dataToExcel['Цена во время акции'].append(gprice_dis)
                     dataToExcel['% скидки'].append(percent)
                     # dataToExcel['Начало акции'].append(get_start_action(gcard.get_attribute('href'),driver))
-                    # dataToExcel['Подкатегория'].append(get_sub_cat(driver_detail))
-                    # dataToExcel['Доп_категория'].append(get_concret_section(driver_detail))
+                    dataToExcel['Подкатегория'].append(get_sub_cat(driver_detail))
+                    dataToExcel['Доп_категория'].append(get_concret_section(driver_detail))
                     dataToExcel['Ссылка'].append(clearHref[0])
 
                     # clearHref = re.findall(r'^[^?]*',gcard.get_attribute('href'))
                     # dataToExcel['Ссылка'].append(clearHref[0])
                     # dataToExcel['Ссылка'].append(gcard.get_attribute('href'))
 
-                    # driver_detail.quit()
+                    driver_detail.quit()
                     with io.open('demo.txt', "a", encoding="utf-8") as f:
                         f.write(getSection(segment)+gname+'\n')
 
