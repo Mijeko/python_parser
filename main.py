@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 #compile to exe run command in console: pyinstaller --onefile main.py
+import concurrent.futures
 import re
 import sqlite3
 import sys
@@ -18,11 +19,13 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from threading import Thread
+import threading, queue
 import pandas as pd
 
 # retailers={'5ka','auchan','bristol','lenta-giper','magnit-univer','maria-ra'}
 selected_retailers=[]
-retailers=['5ka','auchan','aniks','bristol','lenta-giper','magnit-univer','maria-ra','myfasol']
+# retailers=['5ka','auchan','aniks','bristol','lenta-giper','magnit-univer','maria-ra','myfasol']
+retailers=['5ka','auchan','bristol','lenta-giper','magnit-univer','maria-ra','myfasol']
 city = 'barnaul'
 url = "https://edadeal.ru/" + city + "/offers"
 # query_params = "retailer=5ka&retailer=auchan&retailer=bristol&retailer=lenta-giper&retailer=magnit-univer&retailer=maria-ra&segment="
@@ -76,6 +79,10 @@ def getSection(en_sect):
     if(en_sect=='water'): return 'Вода';
     if(en_sect=='sparkling-water'): return 'Газированнная вода';
     if(en_sect=='beverages'): return 'Напитки';
+
+def foot(th):
+    return 'demo th=' + repr(th)
+
 def foo(savedItems, result, index, url_start,segment):
     driver2 = webdriver.Chrome(ChromeDriverManager().install())
     driver2.maximize_window()
@@ -85,7 +92,7 @@ def foo(savedItems, result, index, url_start,segment):
     try:
         WebDriverWait(driver2, 10).until(EC.presence_of_element_located((By.CLASS_NAME, "b-offer__offer-info")))
     except:
-        print('капибара')
+        print('ошибка')
 
     goods_card = driver2.find_elements_by_class_name("p-offers__offer")
     for gcard in goods_card:
@@ -93,7 +100,7 @@ def foo(savedItems, result, index, url_start,segment):
         try:
             clearHref = re.findall(r'^[^?]*',gcard.get_attribute('href'))
         except:
-            print('капибара')
+            print('ошибка')
         for containValue in result[index]['Ссылка']:
             if (containValue == clearHref[0]):
                 contain_doubles = True
@@ -196,13 +203,15 @@ def build_query(key,data):
         out+=key+'='+row+'&'
     return out[:-1]
 def start():
-    while(True):
-        print_select()
-        value = input('Введите название магазина для парсинга (Пустой Enter для продолжения): ')
-        if not value:
-            break
-        selected_retailers.append(value)
-    query_params = build_query('retailer',selected_retailers)
+    work_list=[]
+    # while(True):
+    #     print_select()
+    #     value = input('Введите название магазина для парсинга (Пустой Enter для продолжения): ')
+    #     if not value:
+    #         break
+    #     selected_retailers.append(value)
+    # query_params = build_query('retailer',selected_retailers)
+    query_params = build_query('retailer',retailers)
 
     start_time = time.time()
     for segment in {'beer-cider', 'beverages'}:
@@ -218,13 +227,20 @@ def start():
         threads = [None] * last_page
         results = [dataToExcel] * last_page
         saved_items = [0] * last_page
-        for page_num in range(last_page):
-            pagenation =page_num+1
-            url_start = url + "?page=" + str(pagenation) + "&" + params
-            threads[page_num] = Thread(target=foo, args=(saved_items, results, page_num,url_start,segment))
-            threads[page_num].start()
-    for i in range(len(threads)):
-        threads[i].join()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
+            for page_num in range(last_page):
+                pagenation = page_num + 1
+                url_start = url + "?page=" + str(pagenation) + "&" + params
+                work_list.append(executor.submit(foo, saved_items, results, page_num,url_start,segment))
+        # for page_num in range(last_page):
+        #     pagenation =page_num+1
+        #     url_start = url + "?page=" + str(pagenation) + "&" + params
+        #     threads[page_num] = Thread(target=foot, args=(saved_items, results, page_num,url_start,segment))
+        #     threads[page_num].start()
+    # for i in range(len(threads)):
+    #     threads[i].join()
+    for work in concurrent.futures.as_completed(work_list):
+        work.result()
     list(map(save_to_file, results))
     print('complete for secs: ', time.time()-start_time)
 
