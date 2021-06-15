@@ -22,7 +22,6 @@ from threading import Thread
 import threading, queue
 import pandas as pd
 
-# retailers={'5ka','auchan','bristol','lenta-giper','magnit-univer','maria-ra'}
 selected_retailers=[]
 # retailers=['5ka','auchan','aniks','bristol','lenta-giper','magnit-univer','maria-ra','myfasol']
 retailers=['5ka','auchan','bristol','lenta-giper','magnit-univer','maria-ra','myfasol']
